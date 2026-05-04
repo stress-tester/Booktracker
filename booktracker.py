@@ -1,75 +1,127 @@
 import tkinter as tk
-from tkinter import messagebox
-import requests
+from tkinter import messagebox, ttk
 import json
+from datetime import datetime
 
-# Файл для хранения избранных пользователей
-FAVORITES_FILE = 'favorites.json'
+# Файл для хранения тренировок
+TRAININGS_FILE = 'trainings.json'
 
-# Загрузка избранных пользователей из JSON
-def load_favorites():
+# Загрузка тренировок из JSON
+def load_trainings():
     try:
-        with open(FAVORITES_FILE, 'r') as f:
+        with open(TRAININGS_FILE, 'r') as f:
             return json.load(f)
     except FileNotFoundError:
         return []
 
-favorites = load_favorites()
+trainings = load_trainings()
 
-# Поиск пользователя на GitHub
-def search_user():
-    username = entry.get()
-    if not username:
-        messagebox.showerror("Ошибка", "Поле поиска не должно быть пустым.")
+# Сохранение тренировок в JSON
+def save_trainings():
+    with open(TRAININGS_FILE, 'w') as f:
+        json.dump(trainings, f)
+
+# Добавление тренировки
+def add_training():
+    date_str = date_entry.get()
+    training_type = type_entry.get()
+    duration_str = duration_entry.get()
+
+    # Проверка корректности ввода
+    try:
+        date = datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        messagebox.showerror("Ошибка", "Дата должна быть в формате YYYY-MM-DD.")
         return
 
-    response = requests.get(f"https://api.github.com/users/{username}")
-    if response.status_code == 200:
-        user_data = response.json()
-        name = user_data.get('name', 'Не указано')
-        user_info = f"{name} ({username})"
-        listbox.insert(tk.END, user_info)
-    else:
-        messagebox.showerror("Ошибка", "Пользователь не найден.")
+    try:
+        duration = float(duration_str)
+        if duration <= 0:
+            raise ValueError
+    except ValueError:
+        messagebox.showerror("Ошибка", "Длительность должна быть положительным числом.")
+        return
 
-# Сохранение избранных пользователей в JSON
-def save_favorites():
-    with open(FAVORITES_FILE, 'w') as f:
-        json.dump(favorites, f)
+    training = {
+        'date': date_str,
+        'type': training_type,
+        'duration': duration
+    }
+    trainings.append(training)
+    save_trainings()
+    load_trainings_to_table()
+    clear_entries()
 
-# Добавление пользователя в избранное
-def add_to_favorites():
-    if listbox.curselection():
-        user = listbox.get(listbox.curselection())
-        username = user.split('(')[-1].strip(' )')
-        if username not in favorites:
-            favorites.append(username)
-            save_favorites()
-            messagebox.showinfo("Успех", f"{username} добавлен в избранное!")
-        else:
-            messagebox.showwarning("Уже в избранном", f"{username} уже находится в избранных.")
-    else:
-        messagebox.showwarning("Предупреждение", "Выберите пользователя для добавления в избранное.")
+def clear_entries():
+    date_entry.delete(0, tk.END)
+    type_entry.delete(0, tk.END)
+    duration_entry.delete(0, tk.END)
 
-# Создание основного окна
+def load_trainings_to_table(filtered=None):
+    for row in training_table.get_children():
+        training_table.delete(row)
+
+    for training in (filtered if filtered else trainings):
+        training_table.insert('', 'end', values=(training['date'], training['type'], training['duration']))
+
+def filter_trainings():
+    filtered = []
+    training_type = filter_type_entry.get()
+    date_str = filter_date_entry.get()
+
+    for training in trainings:
+        if (not training_type or training['type'] == training_type) and \
+           (not date_str or training['date'] == date_str):
+            filtered.append(training)
+    
+    load_trainings_to_table(filtered)
+
+# Основное окно
 root = tk.Tk()
-root.title("GitHub User Finder")
+root.title("Training Planner")
 
-# Поле для ввода имени пользователя
-entry = tk.Entry(root, width=50)
-entry.pack(pady=10)
+# Секции для ввода тренировок
+frame = tk.Frame(root)
+frame.pack(pady=10)
 
-# Кнопка поиска
-search_button = tk.Button(root, text="Поиск пользователя", command=search_user)
-search_button.pack(pady=5)
+tk.Label(frame, text="Дата (YYYY-MM-DD)").grid(row=0, column=0)
+date_entry = tk.Entry(frame)
+date_entry.grid(row=0, column=1)
 
-# Список пользователей
-listbox = tk.Listbox(root, width=50)
-listbox.pack(pady=10)
+tk.Label(frame, text="Тип тренировки").grid(row=1, column=0)
+type_entry = tk.Entry(frame)
+type_entry.grid(row=1, column=1)
 
-# Кнопка добавления в избранное
-favorite_button = tk.Button(root, text="Добавить в избранное", command=add_to_favorites)
-favorite_button.pack(pady=5)
+tk.Label(frame, text="Длительность (в минутах)").grid(row=2, column=0)
+duration_entry = tk.Entry(frame)
+duration_entry.grid(row=2, column=1)
+
+add_button = tk.Button(frame, text="Добавить тренировку", command=add_training)
+add_button.grid(row=3, columnspan=2, pady=5)
+
+# Секция для фильтрации
+filter_frame = tk.Frame(root)
+filter_frame.pack(pady=10)
+
+tk.Label(filter_frame, text="Фильтр по типу").grid(row=0, column=0)
+filter_type_entry = tk.Entry(filter_frame)
+filter_type_entry.grid(row=0, column=1)
+
+tk.Label(filter_frame, text="Фильтр по дате").grid(row=1, column=0)
+filter_date_entry = tk.Entry(filter_frame)
+filter_date_entry.grid(row=1, column=1)
+
+filter_button = tk.Button(filter_frame, text="Применить фильтр", command=filter_trainings)
+filter_button.grid(row=2, columnspan=2)
+
+# Таблица для отображения тренировок
+columns = ('Дата', 'Тип тренировки', 'Длительность')
+training_table = ttk.Treeview(root, columns=columns, show='headings')
+for col in columns:
+    training_table.heading(col, text=col)
+training_table.pack(pady=10)
+
+load_trainings_to_table()
 
 # Запуск основного цикла
 root.mainloop()
