@@ -11,7 +11,7 @@
 ### Зависимости:
 requests (рекомендуется установить через `pip install requests`
 
-# Запуск скрипта
+## Запуск скрипта
 ### Через терминал:
 `python booktracker.py` или `python3 booktracker.py`
 ### Через любую IDE
