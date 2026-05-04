@@ -15,7 +15,7 @@ requests (рекомендуется установить через `pip instal
 ### Через терминал:
 `python booktracker.py` или `python3 booktracker.py`
 ### Через любую IDE
-
+Python, Visual Studio, Pycharm и т.д
 
 ### Примеры использования
 1. Введите никнейм пользователя в поле поиска.
